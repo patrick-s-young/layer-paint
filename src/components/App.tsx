@@ -6,12 +6,8 @@ const App = observer(() => {
 
   return (
     <div className="flex w-screen h-screen">
-      <div className="w-[300px] h-full">
-        <Layers />
-      </div>
-      <div className="flex-1 h-full">
-        <Document />
-      </div>
+      <Layers />
+      <Document />
     </div>
   )
 })
