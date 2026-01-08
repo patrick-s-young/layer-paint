@@ -78,14 +78,26 @@ export default class LayerStore {
       this._allMaskImage = await loadImage(allMaskLayer?.maskImageSrc as string);
 
       this._layers = allLayers.filter(layer => layer.type !== 'all');
-      this.setActiveLayer = 1
 
       this._loading = false
     })
   }
 
-  set setActiveLayer(number: number) {
-    this._activeLayer = this._layers.find(layer => layer.order === number)
+  get activeLayer() {
+    return this._activeLayer as Layer
+  }
+
+  @action setActiveLayer(id: string) {
+    this._activeLayer = this._layers.find(layer => layer.id === id)
+  }
+
+
+  get editMode() {
+    return this._editMode
+  }
+
+  set editMode(mode: 'mask' | 'color' | 'none') {
+    this._editMode = mode
   }
 
   get layers() {
@@ -101,6 +113,7 @@ export default class LayerStore {
   }
 
   @action onDragActiveLayer(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
+    if (this._editMode !== 'color') return
     if (action === 'start') {
       this._dragAction = 'start'
       this._dragFromPoint = {x: ev.clientX, y: ev.clientY}

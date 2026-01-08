@@ -22,7 +22,7 @@ export type LayerProps = {
 
 
 export const Document = observer(() => {
-  const [activeLayer, setActiveLayer] = useState<number>(2)
+
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
 

@@ -39,7 +39,7 @@ export const LAYER_DATA: LayerData[] = [
     ypos: 0,
   },
   {
-    id: '0003',
+    id: '0004',
     order: 3,
     type: 'area',
     colorImageSrc: '/area-color-02_444x474.png',
@@ -48,7 +48,7 @@ export const LAYER_DATA: LayerData[] = [
     ypos: 0,
   },
   {
-    id: '0004',
+    id: '0005',
     order: 4,
     type: 'area',
     colorImageSrc: '/area-color-03_444x474.png',
@@ -57,7 +57,7 @@ export const LAYER_DATA: LayerData[] = [
     ypos: 0,
   },
   {
-    id: '0005',
+    id: '0006',
     order: 5,
     type: 'area',
     colorImageSrc: '/area-color-04_444x474.png',
