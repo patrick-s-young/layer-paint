@@ -42,4 +42,9 @@ export const fillColorToImageSrc = (colorHex: string, width: number, height: num
   return cv.toDataURL()
 }
 
-
+export const createEmptyCanvas = (width: number, height: number): HTMLCanvasElement => {
+  const cv = document.createElement('canvas')
+  cv.width = width
+  cv.height = height
+  return cv
+}
