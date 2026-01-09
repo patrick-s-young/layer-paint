@@ -4,6 +4,7 @@ import { observer } from 'mobx-react-lite'
 import { layerStore } from '@/stores/LayerStore'
 
 const CANVAS_SIZE = {width: 444, height: 474}
+const BRUSH_SIZE = 16
 
 
 export type LayerProps = {
@@ -35,8 +36,13 @@ export const Document = observer(() => {
   }, [layerStore.loading])
 
 
+
+
+
   return (
+  
     <div className="relativeflex h-full flex-1" style={{ backgroundImage: 'repeating-conic-gradient(#dfdfdf 0% 25%, transparent 0% 50%, #dfdfdf 0% 75%, transparent 0% 100%)',backgroundSize: '20px 20px'}}>
+
       <div 
         className="absolute top-0 left-[500px] w-full h-full"
         onMouseDown={(ev) => layerStore.onDragActiveLayer(ev, 'start')}

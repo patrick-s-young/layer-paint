@@ -17,7 +17,7 @@ type ColourUpData = {
 }
 
 export const COLOUR_UP_DATA: ColourUpData = {
-  id: '0001',
+  id: '0000',
   assetSrc: '/parka_444x474.png',
   assetMaskSrc: '/parka_444x474_mask.png',
   layers:  [{
@@ -74,6 +74,43 @@ export const COLOUR_UP_DATA: ColourUpData = {
     maskImageSrc: '/area-mask-04_444x474.png',
     xpos: 0,
     ypos: 0,
-  }]
+  },
+  {
+    id: '0007',
+    order: 7,
+    type: 'area',
+    colorImageSrc: '/area-color-05_444x474.png',
+    maskImageSrc: '/area-mask-05_444x474.png',
+    xpos: 0,
+    ypos: 0,
+  },
+  {
+    id: '0008',
+    order: 8,
+    type: 'area',
+    colorImageSrc: '/area-color-06_444x474.png',
+    maskImageSrc: '/area-mask-06_444x474.png',
+    xpos: 0,
+    ypos: 0,
+  },
+  {
+    id: '0009',
+    order: 9,
+    type: 'area',
+    colorImageSrc: '/area-color-07_444x474.png',
+    maskImageSrc: '/area-mask-07_444x474.png',
+    xpos: 0,
+    ypos: 0,
+  },
+  {
+    id: '0010',
+    order: 10,
+    type: 'area',
+    colorHex: '#ff00ff',
+    maskImageSrc: '/area-mask-08_444x474.png',
+    xpos: 0,
+    ypos: 0,
+  }
+  ]
 }
 
