@@ -1,10 +1,7 @@
-import { makeAutoObservable, observable, autorun, action, computed, runInAction } from 'mobx'
-import { loadImage } from '@/lib/canvas.ts'
-import { type LayerData } from './LayerStore.data.ts'
-import { LAYER_DATA } from './LayerStore.data.ts'
-import { compositeMaskToCanvas } from '@/lib/canvas.ts'
-
-
+import { makeAutoObservable, observable, autorun, action } from 'mobx'
+import { type ColourUpData, type LayerData } from './LayerStore.data.ts'
+import { COLOUR_UP_DATA } from './LayerStore.data.ts'
+import { compositeMaskToCanvas, imageToCanvas, loadImage, fillColorToImageSrc } from '@/lib/canvas.ts'
 
 export type Layer = {
   id: string
@@ -15,49 +12,37 @@ export type Layer = {
   type: 'all' | 'area'
   colorImage: HTMLImageElement | undefined
   maskImage: HTMLImageElement | undefined
+  maskCanvas: HTMLCanvasElement | undefined
   compositeCanvas: HTMLCanvasElement | undefined
   xpos: number
   ypos: number
 }
 
-
-
 export default class LayerStore {
-
   @observable protected _layers: Layer[] = []
   @observable protected _loading: boolean = true
-  @observable protected _sketchImage: HTMLImageElement | undefined = undefined
-  @observable protected _allMaskImage: HTMLImageElement | undefined = undefined
+  @observable protected _assetImage: HTMLImageElement | undefined = undefined
+  @observable protected _assetMaskImage: HTMLImageElement | undefined = undefined
   @observable protected _documentCanvas: HTMLCanvasElement | undefined = undefined
   @observable protected _activeLayer: Layer | undefined = undefined
   @observable protected _editMode: 'mask' | 'color' | 'none' = 'color'
   @observable protected _dragAction: 'start' | 'drag' | 'stop' | 'none' = 'none'
   @observable protected _dragFromPoint: {x: number, y: number} | undefined = undefined
+  @observable protected _paintOffsets: {top: number, left: number, scale: number} | undefined = undefined
 
-  constructor(data: LayerData[]) {
+  constructor(data: ColourUpData) {
     makeAutoObservable(this)
-    data.forEach(layer => {
-      this._layers.push({
-        id: layer.id,
-        order: layer.order,
-        colorImageSrc: layer?.colorImageSrc ?? undefined,
-        colorHex: layer?.colorHex ?? undefined,
-        maskImageSrc: layer.maskImageSrc,
-        type: layer.type,
-        colorImage: undefined as Layer["colorImage"],
-        maskImage: undefined as Layer["maskImage"],
-        compositeCanvas: undefined as Layer["compositeCanvas"],
-        xpos: layer.xpos,
-        ypos: layer.ypos,
-      })
-    })
 
     autorun(async() => {
-      const layerPromises = LAYER_DATA.map(async (data) => {
-        const colorImage = await loadImage(data.colorImageSrc as string);
+      const layerPromises = data.layers.map(async (data: LayerData) => {
         const maskImage = await loadImage(data.maskImageSrc);
+        const colorImageSrc: string | undefined = data.colorHex 
+        ? fillColorToImageSrc(data.colorHex, maskImage!.width, maskImage!.height) 
+        : data.colorImageSrc as string;
+        const colorImage = await loadImage(colorImageSrc as string);
+        const maskCanvas = imageToCanvas(maskImage as HTMLImageElement);
         const compositeCanvas = compositeMaskToCanvas(
-          maskImage as HTMLImageElement,
+          maskCanvas as HTMLCanvasElement,
           colorImage as HTMLImageElement,
           data.xpos,
           data.ypos
@@ -65,20 +50,18 @@ export default class LayerStore {
   
         return {
           ...data,
+          colorImageSrc: colorImageSrc as string,
           colorImage: colorImage as HTMLImageElement,
           maskImage: maskImage as HTMLImageElement,
+          maskCanvas: maskCanvas as HTMLCanvasElement,
           compositeCanvas: compositeCanvas as HTMLCanvasElement,
         };
       });
   
-      // 2. Wait for ALL promises to finish
-      const allLayers = await Promise.all(layerPromises);
-      const allMaskLayer = allLayers.filter(layer => layer.type === 'all')[0];
-      this._sketchImage = await loadImage(allMaskLayer?.colorImageSrc as string);
-      this._allMaskImage = await loadImage(allMaskLayer?.maskImageSrc as string);
-
-      this._layers = allLayers.filter(layer => layer.type !== 'all');
-
+      const layers = await Promise.all(layerPromises);
+      this._layers = layers
+      this._assetImage = await loadImage(data.assetSrc as string);
+      this._assetMaskImage = await loadImage(data.assetMaskSrc as string);
       this._loading = false
     })
   }
@@ -91,12 +74,15 @@ export default class LayerStore {
     this._activeLayer = this._layers.find(layer => layer.id === id)
   }
 
+  @action setActiveMask(id: string) {
+    this._activeLayer = this._layers.find(layer => layer.id === id)
+  }
 
   get editMode() {
     return this._editMode
   }
 
-  set editMode(mode: 'mask' | 'color' | 'none') {
+  @action setEditMode(mode: 'mask' | 'color' | 'none') {
     this._editMode = mode
   }
 
@@ -108,12 +94,51 @@ export default class LayerStore {
     return this._loading
   }
 
-  set documentCanvas(canvas: HTMLCanvasElement) {
+  @action setDocumentCanvas(canvas: HTMLCanvasElement) {
     this._documentCanvas = canvas
   }
 
   @action onDragActiveLayer(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
-    if (this._editMode !== 'color') return
+    if (this._editMode === 'color') this.onDragActiveColor(ev, action)
+    if (this._editMode === 'mask') this.onDragActiveMask(ev, action)
+  }
+
+  @action onDragActiveMask(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
+    if (action === 'start') {
+       this._dragAction = 'start'
+       const documentCanvasRect = this._documentCanvas?.getBoundingClientRect()
+       if (!documentCanvasRect) return
+       const { top, left, width } = documentCanvasRect
+       this._paintOffsets = {top: top, left: left, scale: this._activeLayer!.maskImage!.width / width}
+       return
+    }
+    if (action === 'stop') {
+      this._dragAction = 'stop'
+      return
+    }
+    if (action === 'drag' && this._dragAction !== 'start') return
+    const x = (ev.clientX - this._paintOffsets!.left) * this._paintOffsets!.scale
+    const y = (ev.clientY - this._paintOffsets!.top) * this._paintOffsets!.scale
+    const ctx = this._activeLayer!.maskCanvas?.getContext('2d')
+    if (!ctx) return
+    ctx.beginPath()
+    ctx.arc(x, y, 20, 0, 2 * Math.PI, false)
+    ctx.fillStyle = 'green'
+    ctx.fill()
+    ctx.strokeStyle = 'red'
+    ctx.stroke()
+   ctx.closePath()
+   this._activeLayer!.compositeCanvas = compositeMaskToCanvas(
+    this._activeLayer!.maskCanvas as HTMLCanvasElement,
+    this._activeLayer!.colorImage as HTMLImageElement,
+    this._activeLayer!.xpos,
+    this._activeLayer!.ypos
+  )
+    this.drawLayersToCanvas()
+  }
+
+
+  @action onDragActiveColor(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
     if (action === 'start') {
       this._dragAction = 'start'
       this._dragFromPoint = {x: ev.clientX, y: ev.clientY}
@@ -131,14 +156,12 @@ export default class LayerStore {
     this._activeLayer!.xpos += x
     this._activeLayer!.ypos += y
     this._activeLayer!.compositeCanvas = compositeMaskToCanvas(
-      this._activeLayer!.maskImage as HTMLImageElement,
+      this._activeLayer!.maskCanvas as HTMLCanvasElement,
       this._activeLayer!.colorImage as HTMLImageElement,
       this._activeLayer!.xpos,
       this._activeLayer!.ypos
     )
     this.drawLayersToCanvas()
-    // this._activeLayer.xpos = ev.clientX
-    // this._activeLayer.ypos = ev.clientY
   }
 
   @action drawLayersToCanvas() {
@@ -150,10 +173,12 @@ export default class LayerStore {
       destinationCtx.drawImage(layer.compositeCanvas as HTMLCanvasElement, 0, 0)
     })
     destinationCtx.globalCompositeOperation = 'multiply';
-    destinationCtx.drawImage(this._sketchImage as HTMLImageElement, 0, 0)
+    destinationCtx.drawImage(this._assetImage as HTMLImageElement, 0, 0)
     destinationCtx.globalCompositeOperation = 'destination-in';
-    destinationCtx.drawImage(this._allMaskImage as HTMLImageElement, 0, 0)
+    destinationCtx.drawImage(this._assetMaskImage as HTMLImageElement, 0, 0)
   }
+
+
 }
 
-export const layerStore = new LayerStore(LAYER_DATA)
+export const layerStore = new LayerStore(COLOUR_UP_DATA)
