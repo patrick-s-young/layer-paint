@@ -29,7 +29,7 @@ export default class LayerStore {
   @observable protected _dragAction: 'start' | 'drag' | 'stop' | 'none' = 'none'
   @observable protected _dragFromPoint: {x: number, y: number} | undefined = undefined
   @observable protected _paintOffsets: {top: number, left: number, scale: number} | undefined = undefined
-
+  @observable protected _redraw: number = 1
   constructor(data: ColourUpData) {
     makeAutoObservable(this)
 
@@ -66,6 +66,10 @@ export default class LayerStore {
     })
   }
 
+  get redraw() {
+    return this._redraw
+  }
+
   get activeLayer() {
     return this._activeLayer as Layer
   }
@@ -99,6 +103,7 @@ export default class LayerStore {
   }
 
   @action onDragActiveLayer(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
+    console.log('onDragActiveLayer', action)
     if (this._editMode === 'color') this.onDragActiveColor(ev, action)
     if (this._editMode === 'mask') this.onDragActiveMask(ev, action)
   }
@@ -114,6 +119,7 @@ export default class LayerStore {
     }
     if (action === 'stop') {
       this._dragAction = 'stop'
+      this._redraw++
       return
     }
     if (action === 'drag' && this._dragAction !== 'start') return
@@ -123,10 +129,8 @@ export default class LayerStore {
     if (!ctx) return
     ctx.beginPath()
     ctx.arc(x, y, 20, 0, 2 * Math.PI, false)
-    ctx.fillStyle = 'green'
+    ctx.fillStyle = 'black'
     ctx.fill()
-    ctx.strokeStyle = 'red'
-    ctx.stroke()
    ctx.closePath()
    this._activeLayer!.compositeCanvas = compositeMaskToCanvas(
     this._activeLayer!.maskCanvas as HTMLCanvasElement,
