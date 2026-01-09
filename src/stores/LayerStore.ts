@@ -1,7 +1,7 @@
 import { makeAutoObservable, observable, autorun, action } from 'mobx'
 import { type ColourUpData, type LayerData } from './LayerStore.data.ts'
 import { COLOUR_UP_DATA } from './LayerStore.data.ts'
-import { compositeMaskToCanvas, imageToCanvas, loadImage, fillColorToImageSrc } from '@/lib/canvas.ts'
+import { compositeMaskToCanvas, imageToCanvas, loadImage, fillColorToImageSrc, createEmptyCanvas } from '@/lib/canvas.ts'
 
 export type Layer = {
   id: string
@@ -26,6 +26,8 @@ export default class LayerStore {
   @observable protected _documentCanvas: HTMLCanvasElement | undefined = undefined
   @observable protected _activeLayer: Layer | undefined = undefined
   @observable protected _editMode: 'mask' | 'color' | 'none' = 'color'
+  @observable protected _editMaskMode: 'draw' | 'erase' | 'none' = 'draw'
+  @observable protected _editMaskEraseCanvas: HTMLCanvasElement | undefined = undefined
   @observable protected _dragAction: 'start' | 'drag' | 'stop' | 'none' = 'none'
   @observable protected _dragFromPoint: {x: number, y: number} | undefined = undefined
   @observable protected _paintOffsets: {top: number, left: number, scale: number} | undefined = undefined
@@ -62,6 +64,7 @@ export default class LayerStore {
       this._layers = layers
       this._assetImage = await loadImage(data.assetSrc as string);
       this._assetMaskImage = await loadImage(data.assetMaskSrc as string);
+      
       this._loading = false
     })
   }
@@ -90,6 +93,18 @@ export default class LayerStore {
     this._editMode = mode
   }
 
+  @action setEditMaskMode(mode: 'draw' | 'erase' | 'none') {
+    this._editMaskMode = mode
+  }
+
+  get dragAction() {
+    return this._dragAction
+  }
+
+  get editMaskMode() {
+    return this._editMaskMode
+  }
+
   get layers() {
     return this._layers
   }
@@ -100,15 +115,59 @@ export default class LayerStore {
 
   @action setDocumentCanvas(canvas: HTMLCanvasElement) {
     this._documentCanvas = canvas
+    this._documentCanvas.width = this._assetMaskImage!.width
+    this._documentCanvas.height = this._assetMaskImage!.height
   }
 
   @action onDragActiveLayer(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
-    console.log('onDragActiveLayer', action)
     if (this._editMode === 'color') this.onDragActiveColor(ev, action)
-    if (this._editMode === 'mask') this.onDragActiveMask(ev, action)
+    if (this._editMode === 'mask' && this._editMaskMode === 'draw') this.onDragMaskDraw(ev, action)
+    if (this._editMode === 'mask' && this._editMaskMode === 'erase') this.onDragMaskErase(ev, action)
   }
 
-  @action onDragActiveMask(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
+  @action onDragMaskErase(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
+    if (action === 'start') {
+      this._dragAction = 'start'
+      const documentCanvasRect = this._documentCanvas?.getBoundingClientRect()
+      if (!documentCanvasRect) return
+      const { top, left, width } = documentCanvasRect
+      this._paintOffsets = {top: top, left: left, scale: this._activeLayer!.maskImage!.width / width}
+      return
+   }
+   if (action === 'stop') {
+     this._dragAction = 'stop'
+     this._editMaskEraseCanvas = undefined
+     this._redraw++
+     return
+   }
+   if (action === 'drag' && this._dragAction !== 'start') return
+   if (!this._editMaskEraseCanvas) {
+    this._editMaskEraseCanvas = createEmptyCanvas(this._activeLayer!.maskImage!.width, this._activeLayer!.maskImage!.height) as HTMLCanvasElement
+   }
+   const x = (ev.clientX - this._paintOffsets!.left) * this._paintOffsets!.scale
+   const y = (ev.clientY - this._paintOffsets!.top) * this._paintOffsets!.scale
+   const ctx = this._activeLayer!.maskCanvas?.getContext('2d')
+   const eraseCtx = this._editMaskEraseCanvas?.getContext('2d')
+   if (!eraseCtx || !ctx) return
+   eraseCtx.beginPath()
+   eraseCtx.arc(x, y, 20, 0, 2 * Math.PI, false)
+   eraseCtx.fillStyle = 'white'
+   eraseCtx.fill()
+   eraseCtx.closePath()
+
+   ctx.globalCompositeOperation = 'destination-out'
+   ctx.drawImage(this._editMaskEraseCanvas as HTMLCanvasElement, 0, 0)
+   this._activeLayer!.compositeCanvas = compositeMaskToCanvas(
+    this._activeLayer!.maskCanvas as HTMLCanvasElement,
+    this._activeLayer!.colorImage as HTMLImageElement,
+    this._activeLayer!.xpos,
+    this._activeLayer!.ypos
+  )
+    this.drawLayersToCanvas()
+  }
+
+
+  @action onDragMaskDraw(ev: MouseEvent, action: 'start' | 'drag' | 'stop') {
     if (action === 'start') {
        this._dragAction = 'start'
        const documentCanvasRect = this._documentCanvas?.getBoundingClientRect()
@@ -181,8 +240,6 @@ export default class LayerStore {
     destinationCtx.globalCompositeOperation = 'destination-in';
     destinationCtx.drawImage(this._assetMaskImage as HTMLImageElement, 0, 0)
   }
-
-
 }
 
 export const layerStore = new LayerStore(COLOUR_UP_DATA)
