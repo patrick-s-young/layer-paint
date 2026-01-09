@@ -1,4 +1,3 @@
-
 export type LayerData = {
   id: string
   order: number
@@ -10,19 +9,30 @@ export type LayerData = {
   ypos: number
 }
 
-export const LAYER_DATA: LayerData[] = [
-  {
+type ColourUpData = {
+  id: string
+  assetSrc: string
+  assetMaskSrc: string
+  layers: LayerData[]
+}
+
+export const COLOUR_UP_DATA: ColourUpData = {
+  id: '0001',
+  assetSrc: '/parka_444x474.png',
+  assetMaskSrc: '/parka_444x474_mask.png',
+  layers:  [{
     id: '0001',
-    order: 0,
+    order: 1,
     type: 'all',
-    colorImageSrc: '/parka_444x474.png',
+    colorHex: '#ffebcd',
+    //colorImageSrc: '/parka_444x474.png',
     maskImageSrc: '/parka_444x474_mask.png',
     xpos: 0,
     ypos: 0,
   },
   {
     id: '0002',
-    order: 1,
+    order: 2,
     type: 'area',
     colorImageSrc: '/area-color-00_444x474.png',
     maskImageSrc: '/area-mask-00_444x474.png',
@@ -31,7 +41,7 @@ export const LAYER_DATA: LayerData[] = [
   },
   {
     id: '0003',
-    order: 2,
+    order: 3,
     type: 'area',
     colorImageSrc: '/area-color-01_444x474.png',
     maskImageSrc: '/area-mask-01_444x474.png',
@@ -40,7 +50,7 @@ export const LAYER_DATA: LayerData[] = [
   },
   {
     id: '0004',
-    order: 3,
+    order: 4,
     type: 'area',
     colorImageSrc: '/area-color-02_444x474.png',
     maskImageSrc: '/area-mask-02_444x474.png',
@@ -49,7 +59,7 @@ export const LAYER_DATA: LayerData[] = [
   },
   {
     id: '0005',
-    order: 4,
+    order: 5,
     type: 'area',
     colorImageSrc: '/area-color-03_444x474.png',
     maskImageSrc: '/area-mask-03_444x474.png',
@@ -58,11 +68,12 @@ export const LAYER_DATA: LayerData[] = [
   },
   {
     id: '0006',
-    order: 5,
+    order: 6,
     type: 'area',
     colorImageSrc: '/area-color-04_444x474.png',
     maskImageSrc: '/area-mask-04_444x474.png',
     xpos: 0,
     ypos: 0,
-  }
-]
+  }]
+}
+
